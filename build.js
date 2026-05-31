@@ -1,6 +1,5 @@
 import { build as viteBuild } from 'vite';
 import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
 import esbuild from 'esbuild';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -15,7 +14,7 @@ async function runBuild() {
     console.log('📦 1. Building frontend assets with Vite...');
     await viteBuild({
       configFile: false, // Important: completely bypasses reading and bundling of vite.config.js
-      plugins: [react(), tailwindcss()],
+      plugins: [react()],
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
