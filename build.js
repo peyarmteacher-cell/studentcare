@@ -32,17 +32,27 @@ async function runBuild() {
     console.log('✅ Vite frontend build succeeded!');
 
     console.log('⚙️ 2. Bundling backend with esbuild...');
+    const preventParentLookupPlugin = {
+      name: 'prevent-parent-lookup',
+      setup(build) {
+        // Prevent esbuild from scanning parent directories recursively looking for package.json or node_modules
+        build.onResolve({ filter: /^[^./\\]/ }, args => {
+          return { path: args.path, external: true };
+        });
+      }
+    };
+
     await esbuild.build({
       entryPoints: [path.resolve(__dirname, 'server.ts')],
       bundle: true,
       platform: 'node',
       format: 'cjs',
-      packages: 'external',
       sourcemap: true,
       tsconfig: path.resolve(__dirname, 'tsconfig.json'),
       outfile: 'dist/server.cjs',
       absWorkingDir: process.cwd(),
       logLevel: 'info',
+      plugins: [preventParentLookupPlugin]
     });
     console.log('✅ esbuild server packaging succeeded!');
     console.log('🎉 Full programmatic build completed successfully!');
