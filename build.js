@@ -33,24 +33,13 @@ async function runBuild() {
 
     console.log('⚙️ 2. Bundling backend with esbuild...');
     await esbuild.build({
-      entryPoints: ['server.ts'],
+      entryPoints: [path.resolve(__dirname, 'server.ts')],
       bundle: true,
       platform: 'node',
       format: 'cjs',
-      // Explicitly mark all external dependencies from package.json to prevent recursive lookups in parent folders
-      external: [
-        'express', 
-        'mysql2', 
-        'sqlite3', 
-        '@google/genai', 
-        'dotenv',
-        'path',
-        'fs',
-        'url',
-        'http'
-      ],
+      packages: 'external',
       sourcemap: true,
-      tsconfig: 'tsconfig.json',
+      tsconfig: path.resolve(__dirname, 'tsconfig.json'),
       outfile: 'dist/server.cjs',
       absWorkingDir: process.cwd(),
       logLevel: 'info',
