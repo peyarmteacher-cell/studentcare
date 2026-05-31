@@ -3,6 +3,9 @@
  * High-performance API routes with high JSON payload size limit for signatures & photos.
  */
 
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
