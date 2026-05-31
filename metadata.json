@@ -1,0 +1,6 @@
+{
+  "name": "ระบบเยี่ยมบ้านนักเรียน CCT",
+  "description": "ระบบสำรวจและคัดกรองการเยี่ยมบ้านนักเรียนตามเกณฑ์ปัจจัยพื้นฐานยากจนพิเศษ (กสศ. นร.01) พร้อมเขียนข้อเสนอแนะและพิมพ์เอกสารราชการเสมือนจริง",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
