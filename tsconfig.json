@@ -20,6 +20,8 @@
         "./*"
       ]
     },
+    "baseUrl": ".",
+    "rootDir": ".",
     "allowImportingTsExtensions": true,
     "noEmit": true
   }
