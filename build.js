@@ -2,6 +2,7 @@ import { build as viteBuild } from 'vite';
 import react from '@vitejs/plugin-react';
 import esbuild from 'esbuild';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -36,25 +37,29 @@ async function runBuild() {
       name: 'prevent-parent-lookup',
       setup(build) {
         // Prevent esbuild from scanning parent directories recursively looking for package.json or node_modules
-        build.onResolve({ filter: /^[^./\\]/ }, args => {
-          // If the path is absolute (e.g. Windows driver path D:\... or absolute /...), do not mark it external
-          if (path.isAbsolute(args.path) || /^[A-Za-z]:[/\\]/.test(args.path)) {
-            return null; // Let esbuild handle it
-          }
+        build.onResolve({ filter: /^[^.\\/]/ }, args => {
           return { path: args.path, external: true };
         });
       }
     };
 
+    const serverSource = fs.readFileSync(path.resolve(__dirname, 'server.ts'), 'utf8');
+    const tsconfigSource = fs.readFileSync(path.resolve(__dirname, 'tsconfig.json'), 'utf8');
+
     await esbuild.build({
-      entryPoints: [path.resolve(__dirname, 'server.ts')],
+      stdin: {
+        contents: serverSource,
+        resolveDir: __dirname,
+        sourcefile: 'server.ts',
+        loader: 'ts',
+      },
       bundle: true,
       platform: 'node',
       format: 'cjs',
       sourcemap: true,
-      tsconfig: path.resolve(__dirname, 'tsconfig.json'),
+      tsconfigRaw: tsconfigSource,
       outfile: 'dist/server.cjs',
-      absWorkingDir: process.cwd(),
+      absWorkingDir: __dirname,
       logLevel: 'info',
       plugins: [preventParentLookupPlugin]
     });
