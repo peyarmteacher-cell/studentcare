@@ -75,9 +75,21 @@ async function initMySQL(): Promise<DbProvider> {
 }
 
 async function initSQLite(): Promise<DbProvider> {
-  const dbPath = path.join(process.cwd(), 'home_visits.sqlite');
+  // Determine application root directory securely to bypass iisnode/Plesk process.cwd() issues
+  let appRootDir = __dirname;
+  try {
+    const parentDir = path.resolve(__dirname, '..');
+    if (fs.existsSync(path.join(parentDir, 'package.json')) || fs.existsSync(path.join(parentDir, 'index.html'))) {
+      appRootDir = parentDir;
+    }
+  } catch (e) {
+    // Fallback to __dirname
+  }
+
+  const dbPath = path.join(appRootDir, 'home_visits.sqlite');
   console.log(`[Database] Using local SQLite fallback database at: ${dbPath}`);
 
+  // Create SQLite Database connection and make sure folders exist
   const db = new sqlite3.Database(dbPath);
 
   // Helper wrapper for sqlite with Promises
