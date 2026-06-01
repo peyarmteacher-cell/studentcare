@@ -3,4 +3,4 @@
  * This file boots the compiled full-stack server from the build output
  */
 
-import './dist/server.cjs';
+require('./dist/server.cjs');
