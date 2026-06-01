@@ -37,6 +37,10 @@ async function runBuild() {
       setup(build) {
         // Prevent esbuild from scanning parent directories recursively looking for package.json or node_modules
         build.onResolve({ filter: /^[^./\\]/ }, args => {
+          // If the path is absolute (e.g. Windows driver path D:\... or absolute /...), do not mark it external
+          if (path.isAbsolute(args.path) || /^[A-Za-z]:[/\\]/.test(args.path)) {
+            return null; // Let esbuild handle it
+          }
           return { path: args.path, external: true };
         });
       }
