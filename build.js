@@ -33,26 +33,97 @@ async function runBuild() {
     console.log('✅ Vite frontend build succeeded!');
 
     console.log('⚙️ 2. Bundling backend with esbuild...');
-    const preventParentLookupPlugin = {
-      name: 'prevent-parent-lookup',
+    const absoluteWorkspaceRoot = __dirname;
+
+    const localBundlePlugin = {
+      name: 'local-bundle',
       setup(build) {
-        // Prevent esbuild from scanning parent directories recursively looking for package.json or node_modules
+        // 1. Handle non-relative (external) packages
         build.onResolve({ filter: /^[^.\\/]/ }, args => {
+          // If it starts with "@/ ", it is a local alias, not an external package
+          if (args.path.startsWith('@/') || path.isAbsolute(args.path) || /^[A-Za-z]:[/\\]/.test(args.path)) {
+            return null; // Let the next resolver handle it as local
+          }
           return { path: args.path, external: true };
+        });
+
+        // 2. Handle absolute paths or relative/alias paths locally
+        build.onResolve({ filter: /.*/ }, args => {
+          // Resolve the importer's directory
+          let importerDir = absoluteWorkspaceRoot;
+          if (args.resolveDir) {
+            importerDir = args.resolveDir;
+          } else if (args.importer) {
+            const cleanImporter = args.importer.replace(/^local:/, '');
+            if (path.isAbsolute(cleanImporter)) {
+              importerDir = path.dirname(cleanImporter);
+            }
+          }
+
+          // Compute potential absolute paths for this import
+          let resolvedPath = args.path;
+          if (args.path.startsWith('@/')) {
+            resolvedPath = path.resolve(absoluteWorkspaceRoot, args.path.substring(2));
+          } else if (args.path.startsWith('.') || args.path.startsWith('..')) {
+            resolvedPath = path.resolve(importerDir, args.path);
+          } else if (path.isAbsolute(args.path) || /^[A-Za-z]:[/\\]/.test(args.path)) {
+            resolvedPath = path.resolve(args.path);
+          } else {
+            // Fallback for any other path (e.g. entry point)
+            resolvedPath = path.resolve(absoluteWorkspaceRoot, args.path);
+          }
+
+          // Security & Safety constraint: Don't probe outside workspace to prevent Plesk permission errors
+          if (!resolvedPath.toLowerCase().startsWith(absoluteWorkspaceRoot.toLowerCase())) {
+            return { path: args.path, external: true };
+          }
+
+          // Try file extensions (.ts, .js, .json) or look for a directory index (.ts, .js)
+          const extensions = ['', '.ts', '.js', '.json', '/index.ts', '/index.js'];
+          let foundFile = null;
+          for (const ext of extensions) {
+            const testPath = resolvedPath + ext;
+            try {
+              if (fs.existsSync(testPath) && fs.statSync(testPath).isFile()) {
+                foundFile = testPath;
+                break;
+              }
+            } catch (e) {
+              // ignore stat errors
+            }
+          }
+
+          if (foundFile) {
+            return {
+              path: foundFile,
+              namespace: 'local'
+            };
+          }
+
+          return null; // Let next resolve handlers try
+        });
+
+        // 3. Load files from 'local' namespace directly via Node's fs module
+        build.onLoad({ filter: /.*/, namespace: 'local' }, args => {
+          const contents = fs.readFileSync(args.path, 'utf8');
+          const ext = path.extname(args.path);
+          let loader = 'ts';
+          if (ext === '.json') loader = 'json';
+          else if (ext === '.js' || ext === '.mjs' || ext === '.cjs') loader = 'js';
+          
+          return {
+            contents,
+            loader,
+            resolveDir: path.dirname(args.path)
+          };
         });
       }
     };
 
-    const serverSource = fs.readFileSync(path.resolve(__dirname, 'server.ts'), 'utf8');
     const tsconfigSource = fs.readFileSync(path.resolve(__dirname, 'tsconfig.json'), 'utf8');
 
     await esbuild.build({
-      stdin: {
-        contents: serverSource,
-        resolveDir: __dirname,
-        sourcefile: 'server.ts',
-        loader: 'ts',
-      },
+      entryPoints: [path.resolve(__dirname, 'server.ts')],
       bundle: true,
       platform: 'node',
       format: 'cjs',
@@ -61,7 +132,7 @@ async function runBuild() {
       outfile: 'dist/server.cjs',
       absWorkingDir: __dirname,
       logLevel: 'info',
-      plugins: [preventParentLookupPlugin]
+      plugins: [localBundlePlugin]
     });
     console.log('✅ esbuild server packaging succeeded!');
     console.log('🎉 Full programmatic build completed successfully!');
